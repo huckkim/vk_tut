@@ -9,7 +9,7 @@ static const std::vector<const char*> theValidationLayers
 	"VK_LAYER_KHRONOS_validation"
 };
 
-#ifdef DEBUG
+#ifdef _DEBUG
 static const bool theEnableValidationLayer = true;
 #else
 static const bool theEnableValidationLayer = false;
@@ -34,6 +34,7 @@ private:
 	// vulkan debug functions
 	bool checkValidationLayerSupport();
 	std::vector<const char*> getValidationLayers();
+	vk::DebugUtilsMessengerCreateInfoEXT createDebugMessengerCreateInfo();
 
 	bool checkExtensionSupport();
 	std::vector<const char*> getExtensions();
@@ -43,5 +44,5 @@ private:
 
 	// vulkan objects
 	vk::Instance myInstance;
-	vk::DebugUtilsMessengerEXT myDebugMessenger;
+	VkDebugUtilsMessengerEXT myDebugMessenger;
 };
