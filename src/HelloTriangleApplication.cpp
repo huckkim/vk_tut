@@ -1,9 +1,14 @@
 #include "HelloTriangleApplication.h"
 
-#define GLFW_INCLUDE
+#define VK_USE_PLATFORM_WIN32_KHR
+#define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
 
 #include <spdlog/spdlog.h>
+
+#include <unordered_set>
 
 const uint32_t HEIGHT = 600;
 const uint32_t WIDTH = 600;
@@ -85,6 +90,9 @@ HelloTriangleApplication::initVulkan()
 {
 	createInstance();
 	setupDebugMessenger();
+	createSurface();
+	pickPhysicalDevice();
+	createLogicalDevice();
 }
 
 void
@@ -249,11 +257,113 @@ HelloTriangleApplication::createInstance()
 	myInstance = vk::createInstance(createInfo, nullptr);
 }
 
+QueueFamilyIndices
+findQueueFamilies(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface)
+{
+	QueueFamilyIndices indices;
+
+	auto queueFamilies = physicalDevice.getQueueFamilyProperties();
+
+	int i = 0;
+	for (const auto &family : queueFamilies)
+	{
+		VkBool32 presentSupport;
+		vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
+
+		if (presentSupport)
+			indices.presentFamily = i;
+
+		if (family.queueFlags & vk::QueueFlagBits::eGraphics)
+			indices.graphicsFamily = i;
+
+		if (indices.isComplete())
+			break;
+
+		++i;
+	}
+
+	return indices;
+}
+
+bool
+isDeviceSuitable(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface)
+{
+	auto indices = findQueueFamilies(physicalDevice, surface);
+
+	return indices.isComplete();
+}
+
+void
+HelloTriangleApplication::pickPhysicalDevice()
+{
+	auto physicalDevices = myInstance.enumeratePhysicalDevices();
+	if (physicalDevices.size() == 0)
+		throw std::runtime_error("Failed to find GPU with Vulkan support!");
+
+	for (const auto& dev : physicalDevices)
+	{
+		if (isDeviceSuitable(dev, mySurface))
+		{
+			myPhysicalDevice = dev;
+			break;
+		}
+	}
+
+	if (myPhysicalDevice == VK_NULL_HANDLE)
+		throw std::runtime_error("Failed to find a suitable GPU!");
+}
+
+void
+HelloTriangleApplication::createLogicalDevice()
+{
+	QueueFamilyIndices indices = findQueueFamilies(myPhysicalDevice, mySurface);
+	assert(indices.isComplete());
+
+	float queuePriority = 1.0f;
+	std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
+	std::unordered_set<uint32_t> uniqueQueueFamilies{ indices.graphicsFamily.value(), indices.presentFamily.value() };
+
+	for (uint32_t queueFamily : uniqueQueueFamilies)
+	{
+		vk::DeviceQueueCreateInfo queueCreateInfo{};
+		queueCreateInfo.queueFamilyIndex = queueFamily;
+		queueCreateInfo.pQueuePriorities = &queuePriority;
+		queueCreateInfo.queueCount = 1;
+		queueCreateInfos.push_back(queueCreateInfo);
+	}
+
+	vk::PhysicalDeviceFeatures deviceFeatures{};
+
+	assert(queueCreateInfos.size() > 0);
+	vk::DeviceCreateInfo createInfo{};
+	createInfo.pQueueCreateInfos = queueCreateInfos.data();
+	createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+	createInfo.pEnabledFeatures = &deviceFeatures;
+	createInfo.enabledLayerCount = 0;
+
+	myDevice = myPhysicalDevice.createDevice(createInfo, nullptr);
+
+	myQueue = myDevice.getQueue(indices.graphicsFamily.value(), 0);
+}
+
+void
+HelloTriangleApplication::createSurface()
+{
+	VkSurfaceKHR tmp;
+	if (glfwCreateWindowSurface(myInstance, myWindow, nullptr, &tmp) != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create window surface!");
+	}
+	mySurface = tmp;
+}
+
 void
 HelloTriangleApplication::cleanUp()
 {
+	myDevice.destroy();
 	if (theEnableValidationLayer)
 		DestroyDebugUtilsMessengerEXT(myInstance, myDebugMessenger, nullptr);
+	vkDestroySurfaceKHR(myInstance, mySurface, nullptr);
 	myInstance.destroy();
 
 	glfwDestroyWindow(myWindow);

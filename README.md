@@ -1,6 +1,7 @@
 # vk_tut
 
 C++ Code for [Vulkan Tutorial](https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/00_Setup/02_Validation_layers.html)
+using [Vulkan Headers](https://github.com/KhronosGroup/Vulkan-Hpp)
 
 ## Build Instructions
 ### Windows Visual Studio

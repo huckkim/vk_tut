@@ -2,6 +2,8 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include <optional>
+
 struct GLFWwindow;
 
 static const std::vector<const char*> theValidationLayers
@@ -15,6 +17,16 @@ static const bool theEnableValidationLayer = true;
 static const bool theEnableValidationLayer = false;
 #endif
 
+struct QueueFamilyIndices
+{
+	std::optional<uint32_t> graphicsFamily;
+	std::optional<uint32_t> presentFamily;
+
+	bool isComplete() const
+	{
+		return graphicsFamily.has_value() && presentFamily.has_value();
+	}
+};
 
 class HelloTriangleApplication
 {
@@ -30,6 +42,9 @@ private:
 	// vulkan functions
 	void createInstance();
 	void setupDebugMessenger();
+	void pickPhysicalDevice();
+	void createLogicalDevice();
+	void createSurface();
 
 	// vulkan debug functions
 	bool checkValidationLayerSupport();
@@ -43,6 +58,12 @@ private:
 	GLFWwindow* myWindow;
 
 	// vulkan objects
-	vk::Instance myInstance;
+	vk::Instance			myInstance;
+	vk::PhysicalDevice		myPhysicalDevice;
+	vk::Device				myDevice;
+	vk::Queue				myQueue;
+	vk::SurfaceKHR			mySurface;
+	vk::Queue				myPresentQueue;
+
 	VkDebugUtilsMessengerEXT myDebugMessenger;
 };
